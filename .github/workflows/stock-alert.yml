@@ -1,0 +1,52 @@
+name: 宗申动力股价监控
+
+# 北京时间（UTC+8）指向的检查时刻，换算成 UTC 就是下面这行：
+#   9:35 -> 01:35 UTC   10:35 -> 02:35   11:35 -> 03:35
+#  13:35 -> 05:35 UTC   14:35 -> 06:35   15:35 -> 07:35
+# （跳过 04:xx，因为那是北京 12:xx，午休不开市）
+on:
+  schedule:
+    - cron: '35 1,2,3,5,6,7 * * 1-5'
+  workflow_dispatch:          # 手动触发，用于首次测试
+
+permissions:
+  contents: write             # 需要写权限，把 state.json 提交回仓库
+
+concurrency:
+  group: stock-alert
+  cancel-in-progress: false   # 排队而不是取消，避免状态写冲突
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 检查股价并按需推送
+        env:
+          # 三个渠道任配其一即可。程序按 Server酱 > pushplus > WxPusher 的顺序挑。
+          # 推荐 Server酱：免费 5 条/天，关注「方糖服务号」即可在微信收到，不用装 App。
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+        run: python check_stock.py
+
+      - name: 保存监控状态
+        run: |
+          if [ -z "$(git status --porcelain state.json)" ]; then
+            echo "state.json 无变化，跳过提交"
+            exit 0
+          fi
+          git config user.name  "stock-alert-bot"
+          git config user.email "stock-alert-bot@users.noreply.github.com"
+          git add state.json
+          git commit -m "chore: 更新监控状态"
+          git push
