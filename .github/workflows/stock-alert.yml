@@ -7,7 +7,16 @@ name: 宗申动力股价监控
 on:
   schedule:
     - cron: '35 1,2,3,5,6,7 * * 1-5'
-  workflow_dispatch:          # 手动触发，用于首次测试
+  workflow_dispatch:          # 手动触发
+    inputs:
+      mode:
+        description: '运行模式'
+        required: false
+        default: check
+        type: choice
+        options:
+          - check               # 正常检查股价
+          - test                # 只发一条测试消息，确认推送能到手机
 
 permissions:
   contents: write             # 需要写权限，把 state.json 提交回仓库
@@ -37,7 +46,15 @@ jobs:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
-        run: python check_stock.py
+          RUN_MODE: ${{ github.event.inputs.mode }}
+        run: |
+          if [ "$RUN_MODE" = "test" ]; then
+            echo "== 测试模式：只发一条测试消息 =="
+            python check_stock.py --test
+          else
+            echo "== 检查模式：正常判断股价 =="
+            python check_stock.py
+          fi
 
       - name: 保存监控状态
         run: |
