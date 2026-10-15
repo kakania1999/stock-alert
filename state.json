@@ -1,6 +1,6 @@
 {
-  "alerted": false,
-  "last_price": 14.64,
-  "last_check": "2026-10-08 15:57:13",
+  "alerted": true,
+  "last_price": 14.47,
+  "last_check": "2026-10-15 14:21:56",
   "heartbeat_month": "2026-10"
 }
